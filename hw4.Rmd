@@ -1,0 +1,56 @@
+Homework 4 - Team 10 JumpingJukes
+======================================
+
+---
+output: html_document
+---
+
+```{r, message=FALSE, echo=FALSE}
+# Check for libraries and install #
+listOfPackages <- c("shiny", "truncnorm", "tmvtnorm", "parallel")
+NewPackages <- listOfPackages[!(listOfPackages %in% installed.packages()[,"Package"])]
+if(length(NewPackages)>0) {install.packages(NewPackages,repos="http://cran.rstudio.com/")}
+
+# Load libraries #
+library(shiny)
+library(truncnorm)
+library(tmvtnorm)
+library(parallel)
+```
+
+##Task 1##
+
+For our `ui` interface, we designed our shiny app to use a `fluidrow` format. This allows the user to set all the initial parameters across multiple panels at the top of the page, then gives the output as graphs and tables below. In order to allow the user to select the output they want to see, we added check boxes for, plot, summary, and show true input.
+
+In terms of designing our `server` file, we used the same approximate bayesian computing model utilized by Rasmus Baath in his blogpost (http://www.sumsar.net/blog/2014/10/tiny-data-and-the-socks-of-karl-broman/). We first ask the user to input observations on the 'Number of socks drawn'(`n_socks`) and 'Number of sock pairs'(`n_pair`). We also ask the user to input the 'Number of simulation'(n_sims) they would like to run
+
+We then ask the user to input priors beliefs on the 'total number of socks' and 'proportion of sock pairs'. We provide the following priors for 'total number of socks'
+
+1. Negative binomial: This allows us to model discrete counts by specifying an expected value and standard deviation. The standard deviation is then reparameterized as size in the negative binomial.
+
+2. Poisson: This is another suitable way to model discrete counts. The use would just have to specify the expected value.
+
+We provide the user with the following options for prior on 'proportion of sock priors'
+
+1. Beta: This distribution has support between 0 and 1, which is suitable for proportion.
+
+2. Truncated Gamma: This distribution is truncated to have support between 0 and 1, which is suitable for proportion.
+
+3. Truncated t distribution: This distribution is truncated to have support between 0 and 1, which is suitable for proportion.
+
+4. Truncated Normal: This distribution is truncated to have support between 0 and 1, which is suitable for proportion.
+
+Once we have the input, we run a simulation as follows
+
+1. Generate `n_sims` random value from the specified prior on the 'total number of socks' and 'proportion of sock pairs'. We store the values in `prior()`dataframe. 
+2. Based on the random values of priors, we compute the number paired socks and odd socks.
+3. From the paired socks and odd socks, we simulate drawing out socks (based on prior and observed values) and the count the number of unique and paired socks.
+4. At the end of the simulation, we store the simulated values for number of unique and paired socks in `sims()` dataframe
+
+Once we run the simulation, we determine the posterior by subsetting the `priors()` dataframe with the `sim()`dataframe to select only values that match the observed data.
+
+We then output a plot on the posterior(histogram) along the priors(lines) for 'total number of socks' and 'proportion of sock pairs'. We also provide summaries(mean, median, 95% credible intervals) on the plot as well as in text form. This output can be displayed or hidden based on user preference. 
+
+##Task 2##
+
+For the second task, we mainly used parallelization to speed up some of the apply functions.  In particular, we looked at the `gen_model()` function.  Without any parallelization and using the `microbenchmark()` function, it took an average of 556 seconds for the `gen_model()` function to run 1 million trials.  After updating the gen_model function, replacing the `n_picked_pairs` and `n_picked_odds` apply functions with `mclapply`, the `gen_model()` function ran in an average of 6.04 seconds, a significant improvement.  The `mclapply` function was set to run using 4 cores.  However, for less than about 1000 simulations, the overhead of `mclapply` made the regular method, without parallelization faster.  Thus, we added an if statement in this part of the code; more than 1,000 for `n_sims` runs with `mclapply` and less than 1000 simulations runs without parallelization.
